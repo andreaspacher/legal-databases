@@ -1,9 +1,7 @@
 library(tidyverse)
 library(googlesheets4)
 
-gs4_deauth()
-
-DF <- read_sheet("https://docs.google.com/spreadsheets/d/1o0HtHfNNTHmTFcEwSk9eCpt_q2J2iIyIKRyrxfdyjaE/edit?usp=sharing")
+DF <- readxl::read_excel("official-legal-databases.xlsx", skip = 1)
 
 # ========
 #
@@ -11,11 +9,11 @@ DF <- read_sheet("https://docs.google.com/spreadsheets/d/1o0HtHfNNTHmTFcEwSk9eCp
 #
 # ========
 DF %>%
-  group_by(total) %>%
+  group_by(total_score) %>%
   summarise(sum = n(),
             pct = sum / nrow(DF),
             pct = scales::percent(pct, accuracy = 1)) %>%
-  arrange(desc(total))
+  arrange(desc(total_score))
 
 # ========
 #
@@ -24,21 +22,21 @@ DF %>%
 # ========
 DF %>%
   select(
-    #existence_of_official_online_db,
-    "Searchability (titles)" = search_title,
-    "Searchability (full text)" = search_fulltext,
-    "Reusability" = `mark_and_copy (NOT: scanned PDFs)`,
-    "Comprehensiveness" = `comprehensiveness (at least: not obviously fragmented or outdated)`) %>%
+    #free_availability,
+    searchability_title,
+    searchability_fulltext,
+    searchability_title,
+    plausible_comprehensiveness) %>%
   cor() %>%
   round(2) 
 
 DF %>%
   select(
-    existence_of_official_online_db,
-    "Searchability (titles)" = search_title,
-    "Searchability (full text)" = search_fulltext,
-    "Reusability" = `mark_and_copy (NOT: scanned PDFs)`,
-    "Comprehensiveness" = `comprehensiveness (at least: not obviously fragmented or outdated)`) %>%
+    #free_availability,
+    searchability_title,
+    searchability_fulltext,
+    searchability_title,
+    plausible_comprehensiveness) %>%
   reshape2::melt() %>%
   group_by(variable) %>%
   summarise(sum = sum(value),
@@ -53,7 +51,7 @@ DF %>%
 
 # done manually based on this approach:
 DF_table2 <- DF %>%
-  filter(total == 5) %>% # change the score!
+  filter(total_score == 5) %>% # change the score!
   select(country)
 aggregate(country ~., DF_table2, toString)
 
@@ -61,11 +59,11 @@ aggregate(country ~., DF_table2, toString)
 # Chi-Square-Test
 # (correlation between continent & OLD-score)
 #
-DF_CORR <- DF %>% select(total, continent)
-DF_CORR$total <- as.factor(DF_CORR$total)
-DF_CORR$continent <- as.factor(DF_CORR$continent)
-chisq.test(DF_CORR$continent, DF_CORR$total)
-chi2 <- chisq.test(DF_CORR$total, DF_CORR$continent)
+DF_CORR <- DF %>% select(total_score, region)
+DF_CORR$total_score <- as.factor(DF_CORR$total_score)
+DF_CORR$region <- as.factor(DF_CORR$region)
+chisq.test(DF_CORR$region, DF_CORR$total_score)
+chi2 <- chisq.test(DF_CORR$total_score, DF_CORR$region)
 corrplot::corrplot(chi2$residuals, is.cor = FALSE)
 
 # ========
@@ -75,23 +73,23 @@ corrplot::corrplot(chi2$residuals, is.cor = FALSE)
 # ========
 
 DF3 <- DF %>%
-  group_by(continent) %>%
-  mutate(cont_avg = round(mean(total), 2),
-         continent = paste0(continent, " (mean score: ", cont_avg, ")")) %>%
-  count(continent, total) %>%
+  group_by(region) %>%
+  mutate(cont_avg = round(mean(total_score), 2),
+         region = paste0(region, " (mean score: ", cont_avg, ")")) %>%
+  count(region, total_score) %>%
   mutate(pct = round(prop.table(n), 3)) %>%
   mutate(pct2 = scales::percent(pct, accuracy = 1)) %>%
   mutate(labelling = paste0(n, "\n(", pct2, ")"))
 
-DF3$continent_f = factor(DF3$continent,
+DF3$continent_f = factor(DF3$region,
                          levels = c("Europe (mean score: 4.91)", "Asia (mean score: 3.91)", "Africa (mean score: 1.96)",
                                     "Americas (mean score: 3.57)", "Oceania (mean score: 2.93)", "Contested States (mean score: 3.64)"))
 
-ggplot(DF3, aes(x=total, y=as.numeric(n),
+ggplot(DF3, aes(x=total_score, y=as.numeric(n),
                 label = labelling)) +
   geom_bar(stat='identity') +
   facet_wrap(~ continent_f, ncol = 2) +
-  scale_x_continuous("Score", labels = as.character(DF2$total), breaks = DF2$total) +
+  scale_x_continuous("Score", labels = as.character(DF3$total_score), breaks = DF3$total_score) +
   geom_text(position = position_dodge(width = .9),    # move to center of bars
             vjust = -0.2,    # nudge above top of bar
             size = 3) + 
@@ -107,11 +105,11 @@ ggsave("graphs\\continent.png",
        dpi = 300)
 
 
-ggplot(DF3, aes(x=total, y=pct,
+ggplot(DF3, aes(x=total_score, y=pct,
                 label = labelling)) +
   geom_bar(stat='identity') +
   facet_wrap(~ continent_f, ncol = 2) +
-  scale_x_continuous("Score", labels = as.character(DF2$total), breaks = DF2$total) +
+  scale_x_continuous("Score", labels = as.character(DF3$total_score), breaks = DF3$total_score) +
   geom_text(position = position_dodge(width = .9),    # move to center of bars
             vjust = -0.1,    # nudge above top of bar
             size = 3) + 
@@ -134,7 +132,7 @@ ggsave("graphs\\continent_pct.png",
 # ========
 
 DF2 <- DF %>%
-  count(oecd, total) %>%
+  count(oecd, total_score) %>%
   group_by(oecd) %>%
   mutate(pct = round(prop.table(n), 2)) %>%
   mutate(pct2 = scales::percent(pct, accuracy = 1)) %>%
@@ -147,11 +145,11 @@ oecd_names <- c(
 
 DF2$oecd_f = factor(DF2$oecd, levels=c('1', '0'))
 
-ggplot(DF2, aes(x = total, y = pct,
+ggplot(DF2, aes(x = total_score, y = pct,
                 label = labelling)) +
   geom_bar(stat='identity') +
   facet_wrap(~oecd_f, labeller = as_labeller(oecd_names)) +
-  scale_x_continuous("Score", labels = as.character(DF2$total), breaks = DF2$total) +
+  scale_x_continuous("Score", labels = as.character(DF2$total_score), breaks = DF2$total_score) +
   geom_text(position = position_dodge(width = .9),    # move to center of bars
             vjust = -0.1,    # nudge above top of bar
             size = 3) + 
@@ -168,7 +166,7 @@ ggsave("graphs\\oecd.png",
        dpi = 300)
 
 # chi square:
-chisq.test(DF$total, DF$oecd)
+chisq.test(DF$total_score, DF$oecd)
 
 
 # ========
@@ -176,8 +174,8 @@ chisq.test(DF$total, DF$oecd)
 # Fig. 3: Boxplot Internet Usage
 #
 # ========
-DF <- read_sheet("https://docs.google.com/spreadsheets/d/1o0HtHfNNTHmTFcEwSk9eCpt_q2J2iIyIKRyrxfdyjaE/edit?usp=sharing") %>%
-  select(country, iso3, total) %>%
+DF <- DF %>%
+  select(country, iso3, total_score) %>%
   mutate(iso3 = ifelse(country == "Turkish Republic of Northern Cyprus", NA, iso3))
 # load WorldBank data
 worldbank <- readxl::read_excel("Data\\worldbank_internet_usage.xls", skip = 2) %>%
@@ -208,14 +206,14 @@ worldbank <- worldbank %>%
 DF4 <- right_join(worldbank, DF, by = c("country_code" = "iso3")) %>%
   filter(!is.na(country_name) & !is.na(lastvalue))
 # ANOVA
-DF4$total <- as.factor(DF4$total)
-anova <- aov(lastvalue ~ total, data = DF4)
+DF4$total <- as.factor(DF4$total_score)
+anova <- aov(lastvalue ~ total_score, data = DF4)
 summary(anova)
 
-DF2 %>%
+DF4 %>%
   ungroup() %>%
-  select(total, lastvalue) %>%
-  ggplot(aes(x = total, y = lastvalue)) +
+  select(total_score, lastvalue) %>%
+  ggplot(aes(x = total_score, y = lastvalue)) +
   #stat_boxplot(geom ='errorbar') + 
   geom_boxplot(width = 0.35) +
   ylab("Internet Usage of a Country's Population") +
