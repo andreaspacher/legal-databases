@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/522691251.svg)](https://zenodo.org/badge/latestdoi/522691251)
+
 # legal-databases
 
 This repository offers supplementary material for the paper _Is Every Law for Everyone? Assessing Access to National Legislation through Official Legal Databases around the World_ (yet to be published). See the paper for a detailed outline of the methods.
